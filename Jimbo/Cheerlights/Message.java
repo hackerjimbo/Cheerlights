@@ -19,6 +19,7 @@
 package Jimbo.Cheerlights;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 
 import java.net.MulticastSocket;
 import java.net.DatagramPacket;
@@ -32,7 +33,30 @@ import java.net.InetAddress;
  */
 public class Message
 {
-    public Message (String s) throws IOException
+    /**
+     * Build a message from a colour. The original text is also added. Good
+     * for when a message is scanned for multiple colours.
+     * 
+     * @param colour The colour, encoded as 0x00rrggbb.
+     * @param text The associated text.
+     * 
+     * @throws UnsupportedEncodingException In case of String difficulties.
+     */
+    public Message (int colour, String text) throws UnsupportedEncodingException
+    {
+        build (colour, text);
+    }
+    
+    /**
+     * Build a message from a String. Uses the first recognised colour in
+     * the String.
+     * 
+     * @param s The String.
+     * 
+     * @throws UnsupportedEncodingException In case of String difficulties.
+     * @throws IOException If there is no known colour in the String.
+     */
+    public Message (String s) throws UnsupportedEncodingException, IOException
     {
         // Save the text
         text = s;
@@ -42,7 +66,7 @@ public class Message
         
         for (String word : s.split (" "))
         {
-            colour = Colours.lookup (word.toLowerCase ());
+            colour = Colours.lookup (word);
             
             if (colour >= 0)
                 break;
@@ -51,39 +75,96 @@ public class Message
         if (colour < 0)
             throw new IOException ("No known colour in message");
         
-        rgb = colour;
-        
-        // Enode the string and its length
-        final byte[] coded  = s.getBytes ("UTF-8");
-        
-        int lenlen = 1;
-        int left = coded.length;
-        
-        while (left > 0x7f)
-        {
-            lenlen += 1;
-            left >>= 7;
-        }
-        
-        // Now build the blob
-        blob = new byte[4 + lenlen + coded.length];
-        
-        blob[0] = CHEERS;
-        blob[1] = (byte) (rgb >> 16);
-        blob[2] = (byte) (rgb >> 8);
-        blob[3] = (byte) rgb;
-        
-        int upto = 4;
-        
-        for (int i = 0; i < lenlen; ++i)
-            blob[upto++] = (byte) (((coded.length >> (7 * i)) & 0x7f) | ((i != lenlen - 1) ? 0x80 : 0));
-        
-        // Finally add the string to the end
-        System.arraycopy (coded, 0, blob, upto, coded.length);
+        build (colour, s);
     }
     
     /**
-     * Construct a cheerlights message from a byte array.
+     * Build all the data.
+     * 
+     * @param colour The colour to fill in
+     * @param string The String we want to send.
+     * 
+     * @throws UnsupportedEncodingException In case of String difficulties.
+     */
+    private void build (int colour, String string) throws UnsupportedEncodingException
+    {
+        final byte[] coded = string.getBytes ("UTF-8");
+        final int length = coded.length;
+        final int lenlen;
+
+        if (length <= 0x7f)
+            lenlen = 1;
+        else if (length <= (0x7f << 7) + 0x7f)
+            lenlen = 2;
+        else if (length <= (0x7f << 14) + (0x7f << 7) + 0x7f)
+            lenlen = 3;
+        else if (length <= (0x7f << 21) + (0x7f << 14) + (0x7f << 7) + 0x7f)
+            lenlen = 4;
+        else
+            lenlen = 5;
+        
+        // Now build the blob
+        blob = new byte[4 + lenlen + length];
+        
+        blob[0] = CHEERS;
+        blob[1] = (byte) (colour >> 16);
+        blob[2] = (byte) (colour >> 8);
+        blob[3] = (byte) colour;
+        
+        final int upto;
+        
+        switch (lenlen)
+        {
+            case 1:
+                blob[4] = (byte) length;
+                upto = 5;
+                break;
+                
+            case 2:
+                blob[4] = (byte) (length >> 7);
+                blob[5] = (byte) length;
+                upto = 6;
+                break;
+                
+            case 3:
+                blob[4] = (byte) (length >> 14);
+                blob[5] = (byte) (length >>  7);
+                blob[6] = (byte) length;
+                upto = 7;
+                break;
+                
+            case 4:
+                blob[4] = (byte) (length >> 21);
+                blob[5] = (byte) (length >> 14);
+                blob[6] = (byte) (length >>  7);
+                blob[7] = (byte) length;
+                upto = 8;
+                break;
+        
+            case 5:
+                blob[4] = (byte) (length >> 28);
+                blob[5] = (byte) (length >> 21);
+                blob[6] = (byte) (length >> 14);
+                blob[7] = (byte) (length >>  7);
+                blob[9] = (byte) length;
+                upto = 9;
+                break;
+                
+            default:
+                throw new java.lang.AssertionError ("Impossible String length");                   
+        }
+        
+        text = string;
+        rgb = colour;
+        
+        // Finally add the string to the end
+        System.arraycopy (coded, 0, blob, upto, length);
+    }
+    
+    /**
+     * Construct a cheerlights message from a byte array. This would be
+     * the data received from the network (typically).
+     * 
      * @param data The byte array.
      * @throws IOException In case of error.
      */
@@ -102,29 +183,26 @@ public class Message
         
         // Peel off the length
         int length = 0;
-        int shift = 0;
         int upto = 4;
+        boolean end = false;
         
-        for (;;)
+        while (!end)
         {
             if (upto >= data.length)
                 throw new IOException ("Malformed cheerlights message (length)");
             
-            length += (data[upto] & 0x7f) << shift;
-            
-            if ((data[upto] & 0x80) == 0)
-                break;
+            length = (length << 7) + (data[upto] & 0x7f);
+            end = (data[upto] & 0x80) == 0;
             
             upto += 1;
-            shift += 7;
         }
         
         // Check the rest of the data's length
-        if (data.length != upto + 1 + length)
-            throw new IOException ("Malformed cheerlights message (text: " + data.length + " != " + (upto + 1 + length) + ")");
+        if (data.length != upto + length)
+            throw new IOException ("Malformed cheerlights message (text: " + data.length + " != " + (upto + length) + ")");
         
         // Now build the String.
-        text = new String (data, upto + 1, length, "UTF-8");
+        text = new String (data, upto, length, "UTF-8");
         blob = data;
     }
     
@@ -211,9 +289,9 @@ public class Message
     private final static int CHEERS = 1;
     
     /** Where we store the text. */
-    private final String text;
+    private String text;
     /** Where we store the RGB value */
-    private final int rgb;
+    private int rgb;
     /** Where we store the blob. */
-    private final byte blob[];
+    private byte blob[];
 }
