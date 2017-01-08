@@ -39,11 +39,14 @@ class Colours
 	if (map == null)
 	    init ();
 
-	Integer result = map.get (name);
+	Integer result = map.get (name.toLowerCase ());
 
 	return (result == null) ? -1 : result;
     }
 
+    /**
+     * Set everything up.
+     */
     private synchronized static void init ()
     {
 	// Now we're synchronised, check again
