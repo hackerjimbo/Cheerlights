@@ -50,7 +50,7 @@ import twitter4j.UserList;
  * @author jim
  */
 public class TweetListener {
-    private static final Logger LOG = Logger.getLogger ("APA102Lights");
+    private static final Logger LOG = Logger.getLogger ("TweetListener");
     
     /**
      * @param args the command line arguments
@@ -94,22 +94,50 @@ public class TweetListener {
          * Call back routine for when a status arrives.
          * @param status The twitter status message.
          */
-       @Override
+        @Override
         public void onStatus(Status status)
         {
             LOG.log (Level.INFO, "{0}@{1}: {2}",
                     new Object[] {userText (status.getUser ()), status.getCreatedAt ().toString(), status.getText ()});
 
-            Message m;
-            
             try
             {
-                m = new Message (status.getText ());
+                final String text = status.getText ();
+                String words[] = text.split ("[^A-Za-z]+");
+                int sent = 0;
                 
-                final byte[] buffer = m.getBlob ();
-                final DatagramPacket packet = new DatagramPacket (buffer, buffer.length, address, port);
+                for (int i = 0; i < words.length; ++i)
+                {
+                    final int colour = Colours.lookup (words[i]);
+                    
+                    if (colour >= 0)
+                    {
+                        LOG.log (Level.INFO, "{0} -> {1}", new Object[]{words[i], colour});
+                        
+                        Message m = new Message (colour, status.getText ());
                 
-                socket.send (packet);
+                        final byte[] buffer = m.getBlob ();
+                        final DatagramPacket packet = new DatagramPacket (buffer, buffer.length, address, port);
+                
+                        socket.send (packet);
+                        
+                        sent += 1;
+                        
+                        try
+                        {
+                            Message n = new Message (m.getBlob ());
+                        }
+
+                        catch (IOException e)
+                        {
+                            LOG.log (Level.WARNING, "Failed to parse binary {0}: {1}",
+                                    new Object[] {e.getLocalizedMessage(), status.getText ()});
+                        }
+                    }
+                }
+                
+                if (sent == 0)
+                    LOG.log (Level.INFO, "No colour in {0}", text);
             }
             
             catch (IOException e)
@@ -118,17 +146,6 @@ public class TweetListener {
                         new Object[] {e.getLocalizedMessage (), status.getText ()});
                 
                 return;
-            }
-            
-            try
-            {
-                Message n = new Message (m.getBlob ());
-            }
-            
-            catch (IOException e)
-            {
-                LOG.log (Level.WARNING, "Failed to parse binary {0}: {1}",
-                        new Object[] {e.getLocalizedMessage(), status.getText ()});
             }
         }
         
