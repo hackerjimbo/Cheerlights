@@ -117,6 +117,9 @@ public class PiglowLights implements CheerListener
     
     public static void main (String args[]) throws IOException, InterruptedException
     {
+        // Set up simpler logging to stdout
+        Jimbo.Logging.Logging.useStdout ();
+        
         final CheerListener target = new PiglowLights ();
         
         MessageListener.run (target);

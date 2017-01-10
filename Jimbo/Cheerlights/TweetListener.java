@@ -59,6 +59,9 @@ public class TweetListener {
      */
     public static void main (String[] args) throws TwitterException, IOException
     {
+        // Set up simpler logging to stdout
+        Jimbo.Logging.Logging.useStdout();
+        
         LOG.log (Level.INFO, "Starting twitter listener");
         
         Twitter twitter = new TwitterFactory().getInstance();

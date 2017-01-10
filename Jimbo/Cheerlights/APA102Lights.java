@@ -86,6 +86,9 @@ public class APA102Lights implements CheerListener
     
     public static void main (String args[]) throws IOException, UnknownHostException, InterruptedException
     {
+        // Set up simpler logging to stdout
+        Jimbo.Logging.Logging.useStdout ();
+        
         final CheerListener target = new APA102Lights ();
         
         MessageListener.run (target);
