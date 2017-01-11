@@ -115,9 +115,7 @@ public class TweetListener {
                     
                     if (colour >= 0)
                     {
-                        LOG.log (Level.INFO, "{0} -> {1}", new Object[]{words[i], colour});
-                        
-                        Message m = new Message (colour, status.getText ());
+                        Message m = new Message (colour, text);
                 
                         final byte[] buffer = m.getBlob ();
                         final DatagramPacket packet = new DatagramPacket (buffer, buffer.length, address, port);
@@ -125,6 +123,8 @@ public class TweetListener {
                         socket.send (packet);
                         
                         sent += 1;
+                        
+                        // Now check we can decode what we just sent.
                         
                         try
                         {
