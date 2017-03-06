@@ -115,38 +115,38 @@ public class Message
         
         switch (lenlen)
         {
-            case 1:
-                blob[4] = (byte) length;
+            case 1:			 // Length [0,0x7f]
+                blob[4] = (byte) length; // This works because the top bit isn't set
                 upto = 5;
                 break;
                 
-            case 2:
-                blob[4] = (byte) (length >> 7);
-                blob[5] = (byte) length;
+            case 2:			 // Length [0x80,(0x7f<<7)|0x7f=0x3fff] 
+                blob[4] = (byte) ((length >> 7) | 0x80);
+                blob[5] = (byte) (length & 0x7f);
                 upto = 6;
                 break;
                 
-            case 3:
-                blob[4] = (byte) (length >> 14);
-                blob[5] = (byte) (length >>  7);
-                blob[6] = (byte) length;
+            case 3:			 // Length [0x4000,0x1fffff]
+                blob[4] = (byte) ((length >> 14) | 0x80);
+                blob[5] = (byte) ((length >>  7) | 0x80);
+                blob[6] = (byte) (length & 0x7f);
                 upto = 7;
                 break;
                 
-            case 4:
-                blob[4] = (byte) (length >> 21);
-                blob[5] = (byte) (length >> 14);
-                blob[6] = (byte) (length >>  7);
-                blob[7] = (byte) length;
+            case 4:			 // Length [0x200000,0xfffffff]
+                blob[4] = (byte) ((length >> 21) | 0x80);
+		blob[5] = (byte) ((length >> 14) | 0x80);
+		blob[6] = (byte) ((length >>  7) | 0x80);
+                blob[7] = (byte) (length & 0x7f);
                 upto = 8;
                 break;
         
-            case 5:
-                blob[4] = (byte) (length >> 28);
-                blob[5] = (byte) (length >> 21);
-                blob[6] = (byte) (length >> 14);
-                blob[7] = (byte) (length >>  7);
-                blob[9] = (byte) length;
+            case 5:			 // Length [0x10000000,0x7ffffffff] 
+                blob[4] = (byte) ((length >> 28) | 0x80);
+                blob[5] = (byte) ((length >> 21) | 0x80);
+		blob[6] = (byte) ((length >> 14) | 0x80);
+		blob[7] = (byte) ((length >>  7) | 0x80);
+		blob[9] = (byte) (length & 0x7f);
                 upto = 9;
                 break;
                 
@@ -188,7 +188,7 @@ public class Message
         
         while (!end)
         {
-            if (upto >= data.length)
+            if (upto >= data.length || length > (Integer.MAX_VALUE >> 7))
                 throw new IOException ("Malformed cheerlights message (length)");
             
             length = (length << 7) + (data[upto] & 0x7f);
