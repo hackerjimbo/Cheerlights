@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Jim Darby.
+ * Copyright (C) 2016-2017 Jim Darby.
  *
  * This software is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -36,44 +36,33 @@ class Colours
      */
     public static int lookup (String name)
     {
-	if (map == null)
-	    init ();
-
-	Integer result = map.get (name.toLowerCase ());
+	Integer result = MAP.get (name.toLowerCase ());
 
 	return (result == null) ? -1 : result;
     }
-
-    /**
-     * Set everything up.
-     */
-    private synchronized static void init ()
+    
+    /** Where we hold the colour mappings. */
+    private static final HashMap <String, Integer> MAP;
+    
+    static
     {
-	// Now we're synchronised, check again
-	if (map != null)
-	    return;
-
-	// Create it
-	map = new HashMap <> ();
+	MAP = new HashMap <> ();
 
 	// From the cheerlights API documentation
-	map.put ("red",       0xFF0000);
-	map.put ("green",     0x008000);
-	map.put ("blue",      0x0000FF);
-	map.put ("cyan",      0x00FFFF);
-	map.put ("white",     0xFFFFFF);
-	map.put ("oldlace",   0xFDF5E6);
-	map.put ("warmwhite", 0xFDF5E6);
-	map.put ("purple",    0x800080);
-	map.put ("magenta",   0xFF00FF);
-	map.put ("yellow",    0xFFFF00);
-	map.put ("orange",    0xFFA500);
-	map.put ("pink",      0xFFC0CB);
+	MAP.put ("red",       0xFF0000);
+	MAP.put ("green",     0x008000);
+	MAP.put ("blue",      0x0000FF);
+	MAP.put ("cyan",      0x00FFFF);
+	MAP.put ("white",     0xFFFFFF);
+	MAP.put ("oldlace",   0xFDF5E6);
+	MAP.put ("warmwhite", 0xFDF5E6);
+	MAP.put ("purple",    0x800080);
+	MAP.put ("magenta",   0xFF00FF);
+	MAP.put ("yellow",    0xFFFF00);
+	MAP.put ("orange",    0xFFA500);
+	MAP.put ("pink",      0xFFC0CB);
     }
 
-    /** Where we hold the colour mappings. */
-    private static HashMap <String, Integer> map = null;
-    
     public static void main (String args[])
     {
 	for (String s : args)
