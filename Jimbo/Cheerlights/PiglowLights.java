@@ -25,8 +25,9 @@ import java.io.IOException;
 import Jimbo.Boards.com.pimoroni.Piglow;
 
 /**
- *
- * @author pi
+ * This class handles Cheerlights on the Pimoroni PiGlow.
+ * 
+ * @author Jim Darby
  */
 public class PiglowLights implements CheerListener
 {
