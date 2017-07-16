@@ -26,7 +26,8 @@ import java.net.UnknownHostException;
 import Jimbo.Boards.com.pimoroni.Blinkt;
 
 /**
- *
+ * This class handles Cheerlights on the Pimoroni Blinkt.
+ * 
  * @author Jim Darby
  */
 public class BlinktLights implements CheerListener
