@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Jim Darby.
+ * Copyright (C) 2017 Jim Darby.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -25,6 +25,9 @@ import java.net.UnknownHostException;
 
 import Jimbo.Boards.com.pimoroni.Blinkt;
 
+import org.apache.commons.cli.ParseException;
+import org.eclipse.paho.client.mqttv3.MqttException;
+
 /**
  * This class handles Cheerlights on the Pimoroni Blinkt.
  * 
@@ -44,8 +47,14 @@ public class BlinktLights implements CheerListener
             data[i] = 0;
     }
     
+    /**
+     * Update the lights with a new colour.
+     * 
+     * @param colour The colour to update with
+     * @throws IOException In case of problems
+     */
     @Override
-    public void update (int colour) throws IOException
+    public synchronized void update (int colour) throws IOException
     {
         LOG.log (Level.INFO, "Update new colour {0}", Integer.toHexString(colour));
         
@@ -85,14 +94,14 @@ public class BlinktLights implements CheerListener
         data = next;
     }
     
-    public static void main (String args[]) throws IOException, UnknownHostException, InterruptedException
+    public static void main (String args[]) throws IOException, UnknownHostException, InterruptedException, ParseException, MqttException
     {
         // Set up simpler logging to stdout
         Jimbo.Logging.Logging.useStdout ();
         
         final CheerListener target = new BlinktLights ();
         
-        MessageListener.run (target);
+        Listener.setup (args, target);
     }
     
     final Blinkt blinkt;
