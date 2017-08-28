@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Jim Darby.
+ * Copyright (C) 2016, 2017 Jim Darby.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -20,7 +20,36 @@ package Jimbo.Cheerlights;
 
 import java.io.IOException;
 
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.CommandLine;
+
 public interface CheerListener
 {
+    /**
+     * Update the colour of a CheerListener.
+     * 
+     * @param colour The colour.
+     * @throws IOException In case of error.
+     */
     public void update (int colour) throws IOException;
+    
+    /**
+     * Allow a CheerListen to add command line options.
+     * 
+     * @param opts The options to add to.
+     */
+    default public void add_options (Options opts)
+    {
+        // We don't add any options
+    }
+    
+    /**
+     * Allow a CheerListen to read command line options.
+     * 
+     * @param command The command line.
+     */
+    default public void handle_args (CommandLine command)
+    {
+        // We don't look at any options
+    }
 }
