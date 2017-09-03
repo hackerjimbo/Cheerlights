@@ -27,20 +27,32 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 /**
- *
- * @author pi
+ * A class to listen for multicast packets containing colour update 
+ * information.
+ * 
+ * @author Jim Darby
  */
 public class MessageListener implements Runnable
 {
     private static final Logger LOG = Logger.getLogger ("MessageListener");
 
+    /**
+     * Create a multicast message listener. It doesn't start running until
+     * the go method is called.
+     * 
+     * @param target The target to feed colour updates into
+     */
     public MessageListener (CheerListener target)
     {
         LOG.info ("MessageListener created");
 	this.target = target;
     }
     
-    public void start ()
+    /**
+     * Start running the process. This is a non-blocking call that actually
+     * starts a background thread so you don't need to worry about it!
+     */
+    public void go ()
     {
         Thread t = new Thread (this, "Multicast Listener");
         
@@ -48,6 +60,11 @@ public class MessageListener implements Runnable
         LOG.info ("MessageListener started");
     }
     
+    /**
+     * Listen for and process incoming multicast messages. This is a
+     * blocking call so if that's not what you want call go instead and it'll
+     * set up a thread to deal with it.
+     */
     @Override
     public void run ()
     {
@@ -82,14 +99,15 @@ public class MessageListener implements Runnable
         
         catch (UnknownHostException e)
         {
-            LOG.log (Level.WARNING, "MessageListener failed: UnknownHostException {0}", e.toString ());
+            LOG.log (Level.WARNING, "MessageListener failed: UnknownHostException {0}", e.getLocalizedMessage ());
         }
         
         catch (IOException  e)
         {
-            LOG.log (Level.WARNING, "MessageListener failed: IOException {0}", e.toString ());
+            LOG.log (Level.WARNING, "MessageListener failed: IOException {0}", e.getLocalizedMessage ());
         }
     }
 
+    /** The target we want to update. */
     private final CheerListener target;
 }
