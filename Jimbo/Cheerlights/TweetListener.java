@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Jim Darby.
+ * Copyright (C) 2016, 2017 Jim Darby.
  *
  * This software is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -44,6 +44,18 @@ import twitter4j.FilterQuery;
 import twitter4j.StallWarning;
 import twitter4j.UserList;
 
+import org.apache.commons.cli.Options;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.ParseException;
+
+import org.json.JSONObject;
+
+import org.eclipse.paho.client.mqttv3.MqttException;
+
+import Jimbo.MQTT.MQTTClient;
+
 /**
  * Listen for Cheerlights tweets and send out messages to a given IP and port.
  * 
@@ -56,16 +68,58 @@ public class TweetListener {
      * @param args the command line arguments
      * @throws twitter4j.TwitterException
      * @throws java.io.IOException
+     * @throws org.apache.commons.cli.ParseException In case of command line error
      */
-    public static void main (String[] args) throws TwitterException, IOException
+    public static void main (String[] args) throws TwitterException, IOException, ParseException
     {
         // Set up simpler logging to stdout
         Jimbo.Logging.Logging.useStdout();
         
         LOG.log (Level.INFO, "Starting twitter listener");
         
+        Options options = new Options();
+        
+        options.addOption ("b", Listener.MQTT_BROKER_KEY, true, "URL of the broker")
+                .addOption ("c", Listener.MQTT_CLIENT_KEY, true, "The MQTT client name to use")
+                .addOption ("t", Listener.MQTT_TOPIC_KEY, true, "The MQTT topic to use");
+
+        CommandLineParser parser = new DefaultParser ();
+        CommandLine command = parser.parse (options, args);
+        
+        MQTTClient mqtt = null;
+        String mqtt_topic = Listener.DEFAULT_MQTT_TOPIC;
+        
+        if (command.hasOption (Listener.MQTT_BROKER_KEY))
+        {
+            if (!command.hasOption (Listener.MQTT_CLIENT_KEY))
+                throw new ParseException ("MQTT without client name");
+            
+            if (command.hasOption (Listener.MQTT_TOPIC_KEY))
+                mqtt_topic = command.getOptionValue (Listener.MQTT_TOPIC_KEY);
+            
+            try
+            {
+                mqtt = new MQTTClient (command.getOptionValue (Listener.MQTT_BROKER_KEY),
+                        command.getOptionValue (Listener.MQTT_CLIENT_KEY));
+                mqtt.run ();
+            }
+            
+            catch (MqttException e)
+            {
+                LOG.log (Level.WARNING, "Failed to create MQTT client: {0}", e.toString ());
+            }
+        }
+        else
+        {
+            if (command.hasOption (Listener.MQTT_TOPIC_KEY))
+                LOG.warning("MQTT topic supplied but no broker");
+            
+            if (command.hasOption (Listener.MQTT_CLIENT_KEY))
+                LOG.warning ("MQTT client name but no broker");
+        }
+        
         Twitter twitter = new TwitterFactory().getInstance();
-        StatusListener listener = new listener ("224.1.1.1", (short) 5123);
+        StatusListener listener = new listener ("224.1.1.1", (short) 5123, mqtt, mqtt_topic);
         FilterQuery fq = new FilterQuery();        
 
         String keywords[] = {"#cheerlights"};
@@ -84,11 +138,13 @@ public class TweetListener {
      */
     private static class listener implements UserStreamListener
     {
-        public listener (String host, short port) throws SocketException, UnknownHostException, IOException
+        public listener (String host, short port, MQTTClient mqtt, String topic) throws SocketException, UnknownHostException, IOException
         {
             socket = new MulticastSocket ();
 	    address = InetAddress.getByName (host);
             this.port = port;
+            this.mqtt = mqtt;
+            this.topic = topic;
             
             socket.setTimeToLive (3);
         }
@@ -136,6 +192,28 @@ public class TweetListener {
                             LOG.log (Level.WARNING, "Failed to parse binary {0}: {1}",
                                     new Object[] {e.getLocalizedMessage(), status.getText ()});
                         }
+                        
+                        if (mqtt != null)
+                        {
+                            JSONObject message = new JSONObject ();
+                            final User user = status.getUser ();
+                            
+                            message.put ("text", text)
+                                    .put ("colour", colour)
+                                    .put ("name", user.getName ())
+                                    .put ("screen", user.getScreenName ())
+                                    .put ("sent", status.getCreatedAt ().getTime ());
+                            
+                            try
+                            {
+                                mqtt.publish (topic, message.toString ());
+                            }
+                            
+                            catch (MqttException e)
+                            {
+                                LOG.log (Level.WARNING, "Exception while sending MQTT: {0}", e.toString ());
+                            }
+                        }
                     }
                 }
                 
@@ -147,8 +225,6 @@ public class TweetListener {
             {
                 LOG.log (Level.WARNING, "Failed to parse {0}: {1}",
                         new Object[] {e.getLocalizedMessage (), status.getText ()});
-                
-                return;
             }
         }
         
@@ -167,7 +243,7 @@ public class TweetListener {
         @Override
         public void onException(Exception ex)
         {
-            ex.printStackTrace();
+            LOG.log (Level.WARNING, "Exception found: {0}", ex.toString ());
         }
 
         @Override
@@ -335,6 +411,8 @@ public class TweetListener {
         final MulticastSocket socket;
         final InetAddress address;
         final short port;
+        final MQTTClient mqtt;
+        final String topic;
     }
     
     private static String userText (User u)
