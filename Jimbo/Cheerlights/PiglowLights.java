@@ -40,7 +40,7 @@ public class PiglowLights implements CheerListener
     }
     
     @Override
-    public void update (int colour) throws IOException
+    public synchronized void update (int colour) throws IOException
     {
         LOG.log (Level.INFO, "Update new colour {0}", Integer.toHexString(colour));
         
@@ -123,6 +123,6 @@ public class PiglowLights implements CheerListener
         
         final CheerListener target = new PiglowLights ();
         
-        MessageListener.run (target);
+        Listener.setup (args, target);
     }
 }
