@@ -45,7 +45,7 @@ public class RainbowHATLights implements CheerListener
     }
     
     @Override
-    public void update (int colour) throws IOException
+    public synchronized void update (int colour) throws IOException
     {
         LOG.log (Level.INFO, "Update new colour {0}", Integer.toHexString(colour));
         
@@ -73,7 +73,7 @@ public class RainbowHATLights implements CheerListener
             
             try
             {
-                Thread.sleep (10);
+                Thread.sleep (100);
             }
             
             catch (InterruptedException e)
@@ -92,7 +92,7 @@ public class RainbowHATLights implements CheerListener
         
         final CheerListener target = new RainbowHATLights ();
         
-        MessageListener.run (target);
+        Listener.setup (args, target);
     }
         
     private final RainbowHAT.LEDs leds;
